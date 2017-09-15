@@ -1,0 +1,78 @@
+﻿@{
+    ViewBag.Title = "Kazán v1.0";
+}
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script src="https://code.jquery.com/jquery-3.2.1.min.js"
+        integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+        crossorigin="anonymous"></script>
+<br><br>
+<div id="chart_div"></div>
+
+
+@section scripts
+{
+    <script>
+        google.charts.load('current', { 'packages': ['line', 'corechart'] });
+        google.charts.setOnLoadCallback(drawChart);
+
+        function drawChart() {
+
+            var chartDiv = document.getElementById('chart_div');
+
+            var jsonData = $.ajax({
+                url: '/home/get',
+                dataType: 'json',
+            }).done(function(results) {
+
+                console.log(results);
+                var data = new google.visualization.DataTable();
+                data.addColumn('date', 'Idopont');
+                data.addColumn('number', "Viz-homerseklet (T1)");
+                data.addColumn('number', "Fust-homerseklet (T2)");
+                var formatDate = new google.visualization.DateFormat({ pattern: 'MMM. dd. HH:mm' });
+
+                $.each(results,
+                    function(index, value) {
+                        var d = value.d;
+                        var date = new Date(d[0], d[1], d[2], d[3], d[4], d[5]);
+                        //console.log(date);
+                        data.addRow([date, value.t1, value.t2]);
+                    });
+                formatDate.format(data, 0);
+
+
+                var materialOptions = {
+                    chart: {
+                        title: 'Kandallo homersekletek'
+                    },
+                    curveType: 'function',
+                    width: 1300,
+                    height: 550,
+                    series: {
+                        // Gives each series an axis name that matches the Y-axis below.
+                        0: { axis: 'TempsT1' },
+                        1: { axis: 'TempsT2' }
+                    },
+                    axes: {
+                        // Adds labels to each axis; they don't have to match the axis names.
+                        y: {
+                            TempsT1: { label: 'Viz-homerseklet (T1)' },
+                            TempsT2: { label: 'Fust-homerseklet (T2)' }
+                        }
+                    }
+                };
+
+                var materialChart = new google.charts.Line(chartDiv);
+                materialChart.draw(data, materialOptions);
+            });
+        }
+
+
+    </script>
+}
+
+@section head
+{
+    <meta http-equiv="refresh" content="150" />
+}
