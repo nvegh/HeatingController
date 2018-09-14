@@ -20,7 +20,7 @@ void draw(){
   //u8g.setFont(u8g_font_fur49n);
   //u8g.setFont(u8g_font_fur42n);
 
-  char* temp = "75";
+  char* temp = "47";
 
   byte pos = 0;
   if (u8g.getStrWidth(temp) > 82) pos = 20;
