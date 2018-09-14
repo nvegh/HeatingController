@@ -1,3 +1,4 @@
+#include "bitmaps.h"
 #include <TimerOne.h>
 #include <MAX6675_Thermocouple.h>
 #include "U8glib.h"
@@ -16,11 +17,23 @@ MAX6675_Thermocouple* thermocouple2 = NULL;   //fireplace
 
 double water_temp = 0.0;
 double fireplace_temp = 0.0;
-boolean pumpRelay = LOW;
-boolean auto_trigger = LOW;
 boolean waterHot_trigger = LOW;
 
-unsigned long auto_trigger_time = 0;
+struct pumpTrigger {
+  boolean state;
+  unsigned long onTime;
+  double onWaterTemp;
+};
+
+struct autoOnTrigger {
+  boolean state;
+  unsigned long onTime;
+};
+
+pumpTrigger pump = {LOW, 0, 0};
+autoOnTrigger autoOn = {LOW, 0};
+
+
 
 void setup() {
   u8g.setColorIndex(1); // Instructs the display to draw with a pixel on. 
@@ -46,7 +59,7 @@ void loop() {
   do {  
     draw();
   } while( u8g.nextPage() );
-  //delay(1000);   
+   
 }
 
 
@@ -56,35 +69,46 @@ void controlIt()
 
   fireplace_temp = fireplace_temp + 0.4;
   
-  if (fireplace_temp >= 42 && auto_trigger == LOW && pumpRelay == LOW){
-    auto_trigger = HIGH;
-    auto_trigger_time = millis();
+  if (fireplace_temp >= 42 && autoOn.state == LOW && pump.state == LOW){
+    autoOn.state = HIGH;
+    autoOn.onTime = millis();
     Serial.println("auto triggered");  
     delay(5);
   }
 
-  if (auto_trigger == HIGH) { 
-    if (millis()-auto_trigger_time < 600000) {  //10 minutes
+  if (autoOn.state == HIGH) { 
+    if (millis()-autoOn.onTime < 600000) {  //10 minutes
       Serial.println("auto trigger time ON");  
       if (fireplace_temp >= 50) {
           Serial.println("RELAY ON!!");
-          auto_trigger = LOW;
-          pumpRelay = HIGH;
+          autoOn.state = LOW;
+         
+          setPump(HIGH);
         }
     }
     else {
-            auto_trigger = LOW;
+            autoOn.state = LOW;
             Serial.println("auto trigger time OFF");
          }
   }
 
-  if (pumpRelay == HIGH && water_temp >= 30) { 
+  if (pump.state == HIGH && waterHot_trigger == LOW)
+  {
+    if (millis()-pump.onTime > 1200000 && water_temp < pump.onWaterTemp + 4)  //20 mins
+     {
+        setPump(LOW);
+        waterHot_trigger = LOW;
+        Serial.println("Watwr not warming in 20 mins - PUMP OFF");
+      }
+  }
+
+  if (pump.state == HIGH && water_temp >= 30) { 
       waterHot_trigger = HIGH;
         Serial.println("waterHot_trigger HIGH");
   }
   
-  if (waterHot_trigger == HIGH && water_temp <= 20) { 
-        pumpRelay = LOW;
+  if (waterHot_trigger == HIGH && water_temp <= 25) { 
+        setPump(LOW);
         waterHot_trigger = LOW;
         Serial.println("PUMP OFF!!");
   }
@@ -93,15 +117,15 @@ void controlIt()
   Serial.print(water_temp);
   Serial.print(", Fire: ");
   Serial.print(fireplace_temp);
-  Serial.print(", auto_trigger: ");
-  Serial.print(auto_trigger);
-  Serial.print(", auto_trigger time: ");
-  Serial.print(millis()-auto_trigger_time);
-  Serial.print(", pumpRelay: ");
-  Serial.println(pumpRelay);  
+  Serial.print(", autoOn.state: ");
+  Serial.print(autoOn.state);
+  Serial.print(", autoOn.state time: ");
+  Serial.print(millis()-autoOn.onTime);
+  Serial.print(", pump.state: ");
+  Serial.println(pump.state);  
   
    
-  digitalWrite(LED_BUILTIN, pumpRelay);
+  digitalWrite(LED_BUILTIN, pump.state);
 }
 
 void readTemps()
@@ -109,11 +133,20 @@ void readTemps()
   water_temp = .85 * water_temp + .15 * thermocouple1->readCelsius();
   //fireplace_temp = 0.85 * fireplace_temp + .15 * thermocouple2->readCelsius();
 }
-  
+
+void setPump(boolean value)
+{
+          pump.state = value;
+          pump.onTime = millis();
+          pump.onWaterTemp = water_temp;
+}
+
 void draw(){
   //https://code.google.com/archive/p/u8glib/wikis/fontsize.wiki
   //u8g.setFont(u8g_font_fur49n);
   //u8g.setFont(u8g_font_fur42n);
+
+  if (millis()< 5000) {u8g.drawBitmapP( 0, 0, 16, 64, splash_screen); return;}
 
   char cWT[3] = "00";
   dtostrf(water_temp, 2, 0, cWT);
@@ -133,7 +166,7 @@ void draw(){
 
   
   u8g.setFont(u8g_font_profont15);
-  if (pumpRelay) u8g.drawStr(0, 9, "PUMPA");
+  if (pump.state) u8g.drawStr(0, 9, "PUMPA");
 
   u8g.drawStr(128-u8g.getStrWidth(cFT), 9, cFT);
 }
