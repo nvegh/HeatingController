@@ -11,6 +11,8 @@
 #define thermo2_CS_PIN  7
 #define thermo2_SO_PIN  8
 
+#define buttonPin 12
+
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);  
 MAX6675_Thermocouple* thermocouple1 = NULL;   //water
 MAX6675_Thermocouple* thermocouple2 = NULL;   //fireplace
@@ -18,6 +20,12 @@ MAX6675_Thermocouple* thermocouple2 = NULL;   //fireplace
 double water_temp = 0.0;
 double fireplace_temp = 0.0;
 boolean waterHot_trigger = LOW;
+
+enum Status {
+  KI = 0,
+  BE = 1,
+  AUTO = 2
+};
 
 struct pumpTrigger {
   boolean state;
@@ -30,9 +38,19 @@ struct autoOnTrigger {
   unsigned long onTime;
 };
 
+
+struct drawScreen {
+  uint8_t *bitmap;
+  unsigned long timeFrame;
+  char *stat;
+};
+
+drawScreen screen = {splash_screen, 3500, "KI"};
 pumpTrigger pump = {LOW, 0, 0};
 autoOnTrigger autoOn = {LOW, 0};
+Status _status = KI;
 
+boolean buttonPressed = false;
 
 
 void setup() {
@@ -48,6 +66,7 @@ void setup() {
   Timer1.attachInterrupt(controlIt);
 
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(buttonPin, INPUT_PULLUP); 
 
   Serial.begin(9600);
 }
@@ -59,7 +78,32 @@ void loop() {
   do {  
     draw();
   } while( u8g.nextPage() );
-   
+
+   if(digitalRead(buttonPin) == LOW) {
+   buttonPressed = true;
+  }
+
+  if(digitalRead(buttonPin) == HIGH && buttonPressed) { //on release
+     buttonPressed = false;
+     if (_status == 2) {_status = 0;} else {_status = _status + 1;}
+
+    screen.timeFrame = millis()+2000;
+    switch (_status) {
+    case KI:
+      screen.bitmap = off_screen;
+      screen.stat = "KI";
+      break;
+    case BE:
+      screen.bitmap = on_screen;
+      screen.stat = "BE";
+      break;
+    case AUTO:
+      screen.bitmap = auto_screen;
+      screen.stat = "A";
+      break;
+  }
+     
+  }
 }
 
 
@@ -82,7 +126,6 @@ void controlIt()
       if (fireplace_temp >= 50) {
           Serial.println("RELAY ON!!");
           autoOn.state = LOW;
-         
           setPump(HIGH);
         }
     }
@@ -146,7 +189,7 @@ void draw(){
   //u8g.setFont(u8g_font_fur49n);
   //u8g.setFont(u8g_font_fur42n);
 
-  if (millis()< 5000) {u8g.drawBitmapP( 0, 0, 16, 64, splash_screen); return;}
+  if (millis()< screen.timeFrame) {u8g.drawBitmapP( 0, 0, 16, 64, screen.bitmap); return;}
 
   char cWT[3] = "00";
   dtostrf(water_temp, 2, 0, cWT);
@@ -166,8 +209,9 @@ void draw(){
 
   
   u8g.setFont(u8g_font_profont15);
-  if (pump.state) u8g.drawStr(0, 9, "PUMPA");
+  if (pump.state) u8g.drawStr(0, 9, "P");
 
+  u8g.drawStr(40, 9, screen.stat);  
   u8g.drawStr(128-u8g.getStrWidth(cFT), 9, cFT);
 }
 
