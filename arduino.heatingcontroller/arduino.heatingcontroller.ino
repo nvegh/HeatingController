@@ -137,18 +137,18 @@ void loop() {
   {
     switch (setting) {
       case KI:
-        pumpOFF();
+        switchPump(LOW);
         //pump.autoState = PUMP_OFF;
         break;
       case BE:
-        pumpON();
+        switchPump(HIGH);
         break;
       case AUTO:
         if (pump.autoState == PUMP_ON || pump.autoState == WATER_HOT) {
-          pumpON();
+          switchPump(HIGH);
         }
         else {
-          pumpOFF();
+          switchPump(LOW);
         }
         break;
     }
@@ -185,7 +185,7 @@ void setAuto()
       SerialPrintln("auto trigger time ON");
       if (fireplace_temp >= 50) {
         if (setting == AUTO) {
-          pumpON();
+          switchPump(HIGH);
         }
 
         pump.autoState = PUMP_ON;
@@ -206,7 +206,7 @@ void setAuto()
     //after 20 mins water still not warmer than +5 degrees
     if (_millis - pump.autoOnTime > 1200000 && water_temp < pump.autoOnWaterTemp + 5)
     {
-      if (setting == AUTO) pumpOFF();
+      if (setting == AUTO) switchPump(LOW);
       pump.autoState = PUMP_OFF;
       SerialPrintln("Watwr not warming in 20 mins - PUMP OFF");
     }
@@ -218,7 +218,7 @@ void setAuto()
   }
 
   if (pump.autoState == WATER_HOT && water_temp <= 25) {
-    if (setting == AUTO) pumpOFF();
+    if (setting == AUTO) switchPump(LOW);
     pump.autoState = PUMP_OFF;
     SerialPrintln("PUMP OFF!!");
   }
@@ -294,26 +294,13 @@ void draw() {
   u8g.drawStr(128 - u8g.getStrWidth(cFT), 9, cFT);
 }
 
-void pumpON()
+void switchPump(boolean value)
 {
-  pump.actualState = HIGH;
+  pump.actualState = value;
 
-  digitalWrite(buttonLEDPin, HIGH);
+  digitalWrite(buttonLEDPin, value);
 
-  digitalWrite(relaySetPin, HIGH);
+  if (value == HIGH) { digitalWrite(relaySetPin, HIGH);} else { digitalWrite(relayResetPin, HIGH); }
   coilON = true;
   relayTime = millis() + 1000;
 }
-
-void pumpOFF()
-{
-  pump.actualState = LOW;
-
-  digitalWrite(buttonLEDPin, LOW);
-
-  digitalWrite(relayResetPin, HIGH);
-  coilON = true;
-  relayTime = millis() + 1000;
-}
-
-
