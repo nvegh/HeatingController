@@ -85,9 +85,16 @@ void loop() {
 
   if(digitalRead(buttonPin) == HIGH && buttonPressed) { //on release
      buttonPressed = false;
-     if (_status == 2) {_status = 0;} else {_status = _status + 1;}
+     
+      
+     if (!(millis() > screen.timeFrame))
+     {
+        if (_status == 2 ) {_status = 0;} else {_status = _status + 1;}
+     }
+     screen.timeFrame = millis()+2000;
+     
 
-    screen.timeFrame = millis()+2000;
+    
     switch (_status) {
     case KI:
       screen.bitmap = off_screen;
@@ -189,7 +196,7 @@ void draw(){
   //u8g.setFont(u8g_font_fur49n);
   //u8g.setFont(u8g_font_fur42n);
 
-  if (millis()< screen.timeFrame) {u8g.drawBitmapP( 0, 0, 16, 64, screen.bitmap); return;}
+  if (millis()<= screen.timeFrame) {u8g.drawBitmapP( 0, 0, 16, 64, screen.bitmap); return;}
 
   char cWT[3] = "00";
   dtostrf(water_temp, 2, 0, cWT);
