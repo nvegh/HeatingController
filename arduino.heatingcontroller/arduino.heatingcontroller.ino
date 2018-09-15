@@ -26,7 +26,6 @@ MAX6675_Thermocouple* thermocouple2 = NULL;   //fireplace
 
 double water_temp = 0.0;
 double fireplace_temp = 0.0;
-boolean waterHot_trigger = LOW;
 
 enum Status {
   KI = 0,
@@ -47,26 +46,30 @@ struct pumpTrigger {
   double onWaterTemp;
 };
 
-struct timerTrigger {
-  boolean state;
-  unsigned long onTime;
-};
+//struct timerTrigger {
+//  boolean state;
+//  unsigned long onTime;
+//};
 
 struct drawScreen {
   uint8_t *bitmap;
   unsigned long timeFrame;
   char *stat;
+  char *autoState;
 };
 
-drawScreen screen = {splash_screen, 3500, "KI"};
+drawScreen screen = {splash_screen, 3500, "KI", "0"};
 pumpTrigger pump = {LOW, 0, 0};
-timerTrigger autoOn = {LOW, 0};
+//timerTrigger autoOn = {LOW, 0};
+unsigned long autoOnTime = 0;
+boolean waterHot_trigger = LOW;
+
 Status _status = KI;
 autoStatus _autoStatus = PUMP_OFF;
 
 boolean buttonPressed = false;
 boolean statusChanged = true;  //for forcing pin cahnges on start
-unsigned long relayTime;
+unsigned long relayTime = 0;
 boolean coilON = false;
 
 void setup() {
@@ -145,8 +148,12 @@ void loop() {
         pumpON();
         break;
       case AUTO:
-        if (_autoStatus == PUMP_ON || _autoStatus == WATER_HOT) { pumpON(); }
-        else { pumpOFF(); }
+        if (_autoStatus == PUMP_ON || _autoStatus == WATER_HOT) {
+          pumpON();
+        }
+        else {
+          pumpOFF();
+        }
         break;
     }
     statusChanged = false;
@@ -169,28 +176,28 @@ void controlIt()
 
 void setAuto()
 {
-  if (fireplace_temp >= 42 && autoOn.state == LOW && pump.state == LOW) {
-    autoOn.state = HIGH;
-    autoOn.onTime = millis();
+  if (fireplace_temp >= 42 && _autoStatus == PUMP_OFF) {
+    //autoOn.state = HIGH;
+    autoOnTime = millis();
     SerialPrintln("auto triggered");
     _autoStatus = WACTHING;
     delay(5);
   }
 
-  if (autoOn.state == HIGH) {
-    if (millis() - autoOn.onTime < 600000) { //10 minutes
+  if (_autoStatus == WACTHING) {
+    if (millis() - autoOnTime < 600000) { //10 minutes
       SerialPrintln("auto trigger time ON");
       if (fireplace_temp >= 50) {
         SerialPrintln("RELAY ON!!");
-        autoOn.state = LOW;
+        //autoOn.state = LOW;
         if (_status == AUTO) setPump(HIGH);
         _autoStatus = PUMP_ON;
       }
     }
     else {
-      autoOn.state = LOW;
+      //autoOn.state = LOW;
       SerialPrintln("auto trigger time OFF");
-      if (_status == AUTO) _autoStatus = PUMP_OFF;
+      _autoStatus = PUMP_OFF;
     }
   }
 
@@ -217,6 +224,22 @@ void setAuto()
     SerialPrintln("PUMP OFF!!");
     _autoStatus = PUMP_OFF;
   }
+
+  switch (_autoStatus) {
+    case PUMP_OFF:
+        screen.autoState = "0";
+    break;    
+    case WACTHING:
+        screen.autoState = "1";
+      break;
+    case PUMP_ON:
+        screen.autoState = "2";
+      break;
+    case WATER_HOT:
+        screen.autoState = "3";
+      break;
+  }
+
 }
 
 void printStats()
@@ -225,10 +248,8 @@ void printStats()
   SerialPrint(water_temp);
   SerialPrint(", Fire: ");
   SerialPrint(fireplace_temp);
-  SerialPrint(", autoOn.state: ");
-  SerialPrint(autoOn.state);
-  SerialPrint(", autoOn.state time: ");
-  SerialPrint(millis() - autoOn.onTime);
+  SerialPrint(", auto state: ");
+  SerialPrint(screen.autoState);
   SerialPrint(", pump.state: ");
   SerialPrintln(pump.state);
 }
@@ -276,7 +297,8 @@ void draw() {
   u8g.setFont(u8g_font_profont15);
   if (pump.state) u8g.drawStr(0, 9, "P");
 
-  u8g.drawStr(40, 9, screen.stat);
+  u8g.drawStr(30, 9, screen.autoState);
+  u8g.drawStr(45, 9, screen.stat);
   u8g.drawStr(128 - u8g.getStrWidth(cFT), 9, cFT);
 }
 
