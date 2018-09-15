@@ -1,6 +1,7 @@
 #include "bitmaps.h"
 #include <TimerOne.h>
 #include <MAX6675_Thermocouple.h>
+#include <EEPROM.h>
 #include "U8glib.h"
 
 #define thermo1_SCK_PIN 3
@@ -65,6 +66,8 @@ unsigned long relayTime = 0;
 boolean coilON = false;
 
 void setup() {
+
+  setting = readEEPROMsetting();
 
   u8g.setColorIndex(1); // Instructs the display to draw with a pixel on.
 
@@ -151,6 +154,12 @@ void loop() {
         }
         break;
     }
+
+    //write setting too eeprom
+    int toWrite = (int)setting;
+    EEPROM.write(1, highByte(toWrite));
+    EEPROM.write(2, lowByte(toWrite));
+
     statusChanged = false;
   }
 
@@ -308,3 +317,19 @@ void switchPump(boolean value)
   coilON = true;
   relayTime = millis() + 1000;
 }
+
+int readEEPROMsetting()
+{
+  if (EEPROM.read(0) == 226) {
+    byte high = EEPROM.read(1);
+    byte low = EEPROM.read(2);
+    return word(high, low);
+  }
+  else
+  {
+    EEPROM.write(0, 226);
+    return 2;
+  }
+}
+
+
