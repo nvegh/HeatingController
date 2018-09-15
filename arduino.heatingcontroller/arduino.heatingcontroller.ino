@@ -12,6 +12,11 @@
 #define thermo2_SO_PIN  8
 
 #define buttonPin 12
+#define buttonLEDPin 11
+
+#define relaySetPin 9
+#define relayResetPin 10
+
 
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);  
 MAX6675_Thermocouple* thermocouple1 = NULL;   //water
@@ -33,7 +38,7 @@ struct pumpTrigger {
   double onWaterTemp;
 };
 
-struct autoOnTrigger {
+struct timerTrigger {
   boolean state;
   unsigned long onTime;
 };
@@ -47,11 +52,13 @@ struct drawScreen {
 
 drawScreen screen = {splash_screen, 3500, "KI"};
 pumpTrigger pump = {LOW, 0, 0};
-autoOnTrigger autoOn = {LOW, 0};
+timerTrigger autoOn = {LOW, 0};
 Status _status = KI;
 
 boolean buttonPressed = false;
-
+boolean statusChanged = true;  //for forcing pin cahnges on start
+unsigned long relayTime;
+boolean coilON = false;
 
 void setup() {
   u8g.setColorIndex(1); // Instructs the display to draw with a pixel on. 
@@ -65,9 +72,14 @@ void setup() {
   Timer1.initialize(5000000);  //1sec - 1000000
   Timer1.attachInterrupt(controlIt);
 
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(buttonLEDPin, OUTPUT);
   pinMode(buttonPin, INPUT_PULLUP); 
 
+  pinMode(relaySetPin, OUTPUT);
+  pinMode(relayResetPin, OUTPUT); 
+
+  digitalWrite(relaySetPin, LOW);
+  digitalWrite(relayResetPin, LOW);
   Serial.begin(9600);
 }
 
@@ -83,9 +95,10 @@ void loop() {
    buttonPressed = true;
   }
 
-  if(digitalRead(buttonPin) == HIGH && buttonPressed) { //on release
+  if(digitalRead(buttonPin) == HIGH && buttonPressed) { 
+      //on button release
      buttonPressed = false;
-     
+     statusChanged = true;     
       
      if (!(millis() > screen.timeFrame))
      {
@@ -111,15 +124,40 @@ void loop() {
   }
      
   }
+
+  if (statusChanged && millis() > screen.timeFrame)
+  {
+   switch (_status) {
+    case KI:
+      pumpOFF();
+      break;
+    case BE:
+       pumpON();
+      break;
+    case AUTO:
+
+      break;
+     
+  }
+ statusChanged = false;
+ 
+      
+  }
+
+  if (coilON && relayTime < millis()) 
+      {
+          digitalWrite(relayResetPin, LOW);
+          digitalWrite(relaySetPin, LOW);
+          coilON = false;
+      }
+      
 }
 
 
 void controlIt()
 {
   readTemps();
-
-  fireplace_temp = fireplace_temp + 0.4;
-  
+ 
   if (fireplace_temp >= 42 && autoOn.state == LOW && pump.state == LOW){
     autoOn.state = HIGH;
     autoOn.onTime = millis();
@@ -173,9 +211,8 @@ void controlIt()
   Serial.print(millis()-autoOn.onTime);
   Serial.print(", pump.state: ");
   Serial.println(pump.state);  
+
   
-   
-  digitalWrite(LED_BUILTIN, pump.state);
 }
 
 void readTemps()
@@ -220,5 +257,22 @@ void draw(){
 
   u8g.drawStr(40, 9, screen.stat);  
   u8g.drawStr(128-u8g.getStrWidth(cFT), 9, cFT);
+}
+
+void pumpON()
+{
+  digitalWrite(buttonLEDPin, HIGH);
+  digitalWrite(relaySetPin, HIGH);
+  coilON = true;
+  relayTime = millis() + 1000;
+}
+
+
+void pumpOFF()
+{
+   digitalWrite(buttonLEDPin, LOW);
+   digitalWrite(relayResetPin, HIGH);
+   coilON = true;
+   relayTime = millis() + 1000;
 }
 
