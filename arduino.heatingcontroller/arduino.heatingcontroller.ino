@@ -43,7 +43,7 @@ enum autoStatus {
 struct pumpState {
   boolean actualState;
   autoStatus autoState;
-  unsigned long autoOnTime;   //fire start time
+  unsigned long autoOnTime;
   double autoOnWaterTemp;     //pump start temp
 };
 
@@ -54,10 +54,9 @@ struct drawScreen {
   char *autoState;
 };
 
-drawScreen screen = {splash_screen, 3500, "KI", "0"};
+Setting setting = AUTO;
 pumpState pump = {LOW, PUMP_OFF, 0, 0};
-
-Setting setting = KI;
+drawScreen screen = {splash_screen, 3500, "A", "0"};
 
 boolean buttonPressed = false;
 boolean statusChanged = true;  //for forcing pin cahnges on start
@@ -203,17 +202,18 @@ void setAuto()
 
   if (pump.autoState == PUMP_ON)
   {
-    //after 20 mins water still not warmer than +5 degrees
-    if (_millis - pump.autoOnTime > 1200000 && water_temp < pump.autoOnWaterTemp + 5)
+    //after 20 mins water still not warmer than 30
+    if (_millis - pump.autoOnTime > 1200000)
     {
-      if (setting == AUTO) switchPump(LOW);
-      pump.autoState = PUMP_OFF;
-      SerialPrintln("Watwr not warming in 20 mins - PUMP OFF");
-    }
-
-    if (water_temp >= 30) {
-      pump.autoState = WATER_HOT;
-      SerialPrintln("WATER_HOT");
+      if (water_temp < 30) {
+        if (setting == AUTO) switchPump(LOW);
+        pump.autoState = PUMP_OFF;
+        SerialPrintln("Watwr not warming in 20 mins - PUMP OFF");
+      }
+      else {
+        pump.autoState = WATER_HOT;
+        SerialPrintln("WATER_HOT");
+      }
     }
   }
 
@@ -300,7 +300,11 @@ void switchPump(boolean value)
 
   digitalWrite(buttonLEDPin, value);
 
-  if (value == HIGH) { digitalWrite(relaySetPin, HIGH);} else { digitalWrite(relayResetPin, HIGH); }
+  if (value == HIGH) {
+    digitalWrite(relaySetPin, HIGH);
+  } else {
+    digitalWrite(relayResetPin, HIGH);
+  }
   coilON = true;
   relayTime = millis() + 1000;
 }
