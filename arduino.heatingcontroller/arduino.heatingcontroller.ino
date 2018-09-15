@@ -46,11 +46,6 @@ struct pumpTrigger {
   double onWaterTemp;
 };
 
-//struct timerTrigger {
-//  boolean state;
-//  unsigned long onTime;
-//};
-
 struct drawScreen {
   uint8_t *bitmap;
   unsigned long timeFrame;
@@ -60,7 +55,7 @@ struct drawScreen {
 
 drawScreen screen = {splash_screen, 3500, "KI", "0"};
 pumpTrigger pump = {LOW, 0, 0};
-//timerTrigger autoOn = {LOW, 0};
+
 unsigned long autoOnTime = 0;
 boolean waterHot_trigger = LOW;
 
@@ -69,10 +64,12 @@ autoStatus _autoStatus = PUMP_OFF;
 
 boolean buttonPressed = false;
 boolean statusChanged = true;  //for forcing pin cahnges on start
+
 unsigned long relayTime = 0;
 boolean coilON = false;
 
 void setup() {
+  
   u8g.setColorIndex(1); // Instructs the display to draw with a pixel on.
 
   thermocouple1 = new MAX6675_Thermocouple(thermo1_SCK_PIN, thermo1_CS_PIN, thermo1_SO_PIN, 20, 10);
@@ -92,6 +89,7 @@ void setup() {
 
   digitalWrite(relaySetPin, LOW);
   digitalWrite(relayResetPin, LOW);
+  
   Serial.begin(9600);
 }
 
@@ -176,26 +174,25 @@ void controlIt()
 
 void setAuto()
 {
+  unsigned long _millis = millis();
+  
   if (fireplace_temp >= 42 && _autoStatus == PUMP_OFF) {
-    //autoOn.state = HIGH;
-    autoOnTime = millis();
+    autoOnTime = _millis;
     SerialPrintln("auto triggered");
     _autoStatus = WACTHING;
     delay(5);
   }
 
   if (_autoStatus == WACTHING) {
-    if (millis() - autoOnTime < 600000) { //10 minutes
+    if (_millis - autoOnTime < 600000) { //10 minutes
       SerialPrintln("auto trigger time ON");
       if (fireplace_temp >= 50) {
         SerialPrintln("RELAY ON!!");
-        //autoOn.state = LOW;
         if (_status == AUTO) setPump(HIGH);
         _autoStatus = PUMP_ON;
       }
     }
     else {
-      //autoOn.state = LOW;
       SerialPrintln("auto trigger time OFF");
       _autoStatus = PUMP_OFF;
     }
@@ -203,7 +200,7 @@ void setAuto()
 
   if (pump.state == HIGH && waterHot_trigger == LOW)
   {
-    if (millis() - pump.onTime > 1200000 && water_temp < pump.onWaterTemp + 5) //after 20 mins water still not warmer than +5 degrees
+    if (_millis - pump.onTime > 1200000 && water_temp < pump.onWaterTemp + 5) //after 20 mins water still not warmer than +5 degrees
     {
       if (_status == AUTO) setPump(LOW);
       waterHot_trigger = LOW;
