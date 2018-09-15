@@ -141,6 +141,7 @@ void loop() {
     switch (_status) {
       case KI:
         pumpOFF();
+        //_autoStatus = PUMP_OFF; waterHot_trigger = LOW; - reset auto things
         break;
       case BE:
         pumpON();
@@ -180,7 +181,6 @@ void setAuto()
     autoOnTime = _millis;
     SerialPrintln("auto triggered");
     _autoStatus = WACTHING;
-    delay(5);
   }
 
   if (_autoStatus == WACTHING) {
@@ -188,7 +188,7 @@ void setAuto()
       SerialPrintln("auto trigger time ON");
       if (fireplace_temp >= 50) {
         SerialPrintln("RELAY ON!!");
-        if (_status == AUTO) setPump(HIGH);
+        if (_status == AUTO) { pumpON(); }
         _autoStatus = PUMP_ON;
       }
     }
@@ -202,24 +202,24 @@ void setAuto()
   {
     if (_millis - pump.onTime > 1200000 && water_temp < pump.onWaterTemp + 5) //after 20 mins water still not warmer than +5 degrees
     {
-      if (_status == AUTO) setPump(LOW);
+      if (_status == AUTO) pumpOFF();
       waterHot_trigger = LOW;
-      SerialPrintln("Watwr not warming in 20 mins - PUMP OFF");
       _autoStatus = PUMP_OFF;
+      SerialPrintln("Watwr not warming in 20 mins - PUMP OFF");
     }
   }
 
   if (pump.state == HIGH && water_temp >= 30) {
     waterHot_trigger = HIGH;
-    SerialPrintln("waterHot_trigger HIGH");
     _autoStatus = WATER_HOT;
+    SerialPrintln("waterHot_trigger HIGH");
   }
 
   if (waterHot_trigger == HIGH && water_temp <= 25) {
-    if (_status == AUTO) setPump(LOW);
+    if (_status == AUTO) pumpOFF();
     waterHot_trigger = LOW;
-    SerialPrintln("PUMP OFF!!");
     _autoStatus = PUMP_OFF;
+    SerialPrintln("PUMP OFF!!");
   }
 
   switch (_autoStatus) {
@@ -257,12 +257,6 @@ void readTemps()
   //fireplace_temp = 0.85 * fireplace_temp + .15 * thermocouple2->readCelsius();
 }
 
-void setPump(boolean value)
-{
-  pump.state = value;
-  pump.onTime = millis();
-  pump.onWaterTemp = water_temp;
-}
 
 void draw() {
   //https://code.google.com/archive/p/u8glib/wikis/fontsize.wiki
@@ -301,7 +295,12 @@ void draw() {
 
 void pumpON()
 {
+  pump.state = HIGH;
+  pump.onTime = millis();
+  pump.onWaterTemp = water_temp;
+  
   digitalWrite(buttonLEDPin, HIGH);
+  
   digitalWrite(relaySetPin, HIGH);
   coilON = true;
   relayTime = millis() + 1000;
@@ -309,6 +308,10 @@ void pumpON()
 
 void pumpOFF()
 {
+  pump.state = LOW;
+  pump.onTime = millis();
+  pump.onWaterTemp = water_temp;
+  
   digitalWrite(buttonLEDPin, LOW);
   digitalWrite(relayResetPin, HIGH);
   coilON = true;
