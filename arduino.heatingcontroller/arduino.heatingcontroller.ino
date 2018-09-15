@@ -104,12 +104,11 @@ void loop() {
     buttonPressed = true;
   }
 
-  if (digitalRead(buttonPin) == HIGH && buttonPressed) {
-    //on button release
+  if (digitalRead(buttonPin) == HIGH && buttonPressed) {  //on button release
     buttonPressed = false;
     statusChanged = true;
 
-    if (!(millis() > screen.timeFrame))
+    if (!(millis() > screen.timeFrame))  //display current status
     {
       if (_status == 2 ) {
         _status = 0;
@@ -136,7 +135,7 @@ void loop() {
     }
   }
 
-  if (statusChanged && millis() > screen.timeFrame)
+  if (statusChanged && millis() > screen.timeFrame)  //change screen over
   {
     switch (_status) {
       case KI:
@@ -146,7 +145,8 @@ void loop() {
         pumpON();
         break;
       case AUTO:
-
+        if (_autoStatus == PUMP_ON || _autoStatus == WATER_HOT) { pumpON(); }
+        else { pumpOFF(); }
         break;
     }
     statusChanged = false;
@@ -160,11 +160,15 @@ void loop() {
   }
 }
 
-
 void controlIt()
 {
   readTemps();
+  setAuto();
+  printStats();
+}
 
+void setAuto()
+{
   if (fireplace_temp >= 42 && autoOn.state == LOW && pump.state == LOW) {
     autoOn.state = HIGH;
     autoOn.onTime = millis();
@@ -179,22 +183,22 @@ void controlIt()
       if (fireplace_temp >= 50) {
         SerialPrintln("RELAY ON!!");
         autoOn.state = LOW;
-        setPump(HIGH);
+        if (_status == AUTO) setPump(HIGH);
         _autoStatus = PUMP_ON;
       }
     }
     else {
       autoOn.state = LOW;
       SerialPrintln("auto trigger time OFF");
-      _autoStatus = PUMP_OFF;
+      if (_status == AUTO) _autoStatus = PUMP_OFF;
     }
   }
 
   if (pump.state == HIGH && waterHot_trigger == LOW)
   {
-    if (millis() - pump.onTime > 1200000 && water_temp < pump.onWaterTemp + 4) //20 mins
+    if (millis() - pump.onTime > 1200000 && water_temp < pump.onWaterTemp + 5) //after 20 mins water still not warmer than +5 degrees
     {
-      setPump(LOW);
+      if (_status == AUTO) setPump(LOW);
       waterHot_trigger = LOW;
       SerialPrintln("Watwr not warming in 20 mins - PUMP OFF");
       _autoStatus = PUMP_OFF;
@@ -208,12 +212,15 @@ void controlIt()
   }
 
   if (waterHot_trigger == HIGH && water_temp <= 25) {
-    setPump(LOW);
+    if (_status == AUTO) setPump(LOW);
     waterHot_trigger = LOW;
     SerialPrintln("PUMP OFF!!");
     _autoStatus = PUMP_OFF;
   }
+}
 
+void printStats()
+{
   SerialPrint("Water: ");
   SerialPrint(water_temp);
   SerialPrint(", Fire: ");
@@ -224,8 +231,6 @@ void controlIt()
   SerialPrint(millis() - autoOn.onTime);
   SerialPrint(", pump.state: ");
   SerialPrintln(pump.state);
-
-
 }
 
 void readTemps()
@@ -283,7 +288,6 @@ void pumpON()
   relayTime = millis() + 1000;
 }
 
-
 void pumpOFF()
 {
   digitalWrite(buttonLEDPin, LOW);
@@ -291,4 +295,3 @@ void pumpOFF()
   coilON = true;
   relayTime = millis() + 1000;
 }
-
