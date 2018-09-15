@@ -18,6 +18,7 @@
 #define relaySetPin 9
 #define relayResetPin 10
 
+#define DoSerial (Serial.begin(9600))
 #define SerialPrintln(a) (Serial.println(a))
 #define SerialPrint(a) (Serial.print(a))
 
@@ -72,7 +73,7 @@ void setup() {
   u8g.setColorIndex(1); // Instructs the display to draw with a pixel on.
 
   thermocouple1 = new MAX6675_Thermocouple(thermo1_SCK_PIN, thermo1_CS_PIN, thermo1_SO_PIN, 20, 10);
-  thermocouple2 = new MAX6675_Thermocouple(thermo2_SCK_PIN, thermo2_CS_PIN, thermo2_SO_PIN, 15, 7);
+  thermocouple2 = new MAX6675_Thermocouple(thermo2_SCK_PIN, thermo2_CS_PIN, thermo2_SO_PIN, 20, 10);
 
   water_temp = thermocouple1->readCelsius();
   fireplace_temp = 40; //thermocouple2->readCelsius();
@@ -89,7 +90,7 @@ void setup() {
   digitalWrite(relaySetPin, LOW);
   digitalWrite(relayResetPin, LOW);
 
-  Serial.begin(9600);
+  DoSerial;
 }
 
 
