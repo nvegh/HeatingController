@@ -1,17 +1,13 @@
 #include "bitmaps.h"
 #include <TimerOne.h>
-#include <MAX6675_Thermocouple.h>
+#include <SPI.h>
 #include <EEPROM.h>
 #include "U8glib.h"
 
-#define thermo1_SCK_PIN 11
+//Arduino SCK (pin 13) to all the SCK pins.
+//Arduino MISO (pin 12) to all the DO (SO) pins
 #define thermo1_CS_PIN  10
-#define thermo1_SO_PIN  12
-
-//terminal block
-#define thermo2_SCK_PIN 11
-#define thermo2_CS_PIN  13
-#define thermo2_SO_PIN  12
+#define thermo2_CS_PIN  11    //on terminal block
 
 #define buttonPin A3
 #define buttonLEDPin 3
@@ -28,11 +24,11 @@
 // SCK = D0
 // SDA = D1,MOSI
 // DC = A0
-//U8GLIB_SSD1306_128X64(sck, mosi, cs, a0 [, reset])
+// U8GLIB_SSD1306_128X64(sck, mosi, cs, a0 [, reset])
 U8GLIB_SSD1306_128X64 u8g(4, 5, 8, 7, 6);
 
-MAX6675_Thermocouple* thermocouple1 = NULL;   //water
-MAX6675_Thermocouple* thermocouple2 = NULL;   //fireplace
+//MAX6675_Thermocouple* thermocouple1 = NULL;   //water
+//MAX6675_Thermocouple* thermocouple2 = NULL;   //fireplace
 
 double water_temp = 0.0;
 double fireplace_temp = 0.0;
@@ -80,25 +76,25 @@ void setup() {
 
   u8g.setColorIndex(1); // Instructs the display to draw with a pixel on.
 
-  thermocouple1 = new MAX6675_Thermocouple(thermo1_SCK_PIN, thermo1_CS_PIN, thermo1_SO_PIN, 20, 10);
-  thermocouple2 = new MAX6675_Thermocouple(thermo2_SCK_PIN, thermo2_CS_PIN, thermo2_SO_PIN, 20, 10);
-
-  water_temp = thermocouple1->readCelsius();
-  fireplace_temp = 40; //thermocouple2->readCelsius();
+  water_temp = readWaterTemp();
+  fireplace_temp = 40; //readFireplaceTemp();
 
   Timer1.initialize(5000000);  //1sec - 1000000
   Timer1.attachInterrupt(controlIt);
 
   pinMode(buttonLEDPin, OUTPUT);
   pinMode(buttonPin, INPUT_PULLUP);
-
+  pinMode(buzzerPin, OUTPUT);
+   
   pinMode(relaySetPin, OUTPUT);
   pinMode(relayResetPin, OUTPUT);
 
   digitalWrite(relaySetPin, LOW);
   digitalWrite(relayResetPin, LOW);
-
+  digitalWrite(buzzerPin, LOW);
+  
   DoSerial;
+  SerialPrintln("READY!!");
 }
 
 
@@ -272,8 +268,8 @@ void printStats()
 
 void readTemps()
 {
-  water_temp = .85 * water_temp + .15 * thermocouple1->readCelsius();
-  //fireplace_temp = 0.85 * fireplace_temp + .15 * thermocouple2->readCelsius();
+  water_temp = .85 * water_temp + .15 * readWaterTemp();
+  //fireplace_temp = 0.85 * fireplace_temp + .15 * readFireplaceTemp();
 }
 
 
@@ -341,4 +337,32 @@ int readEEPROMsetting()
   }
 }
 
+double readFireplaceTemp()
+{
+  return readCelsius(thermo1_CS_PIN);
+  }
 
+
+double readWaterTemp()
+{
+  return readCelsius(thermo2_CS_PIN);
+  }
+  
+double readCelsius(uint8_t cs) {
+    uint16_t v;
+
+    digitalWrite(cs, LOW);
+    v = SPI.transfer(0x00);
+    v <<= 8;
+    v |= SPI.transfer(0x00);
+    digitalWrite(cs, HIGH);
+
+    if (v & 0x4) {
+        // uh oh, no thermocouple attached!
+        return NAN; 
+    }
+
+    v >>= 3;
+
+    return v*0.25;
+}
