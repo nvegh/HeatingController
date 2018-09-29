@@ -4,19 +4,22 @@
 #include <EEPROM.h>
 #include "U8glib.h"
 
-#define thermo1_SCK_PIN 3
-#define thermo1_CS_PIN  4
-#define thermo1_SO_PIN  5
+#define thermo1_SCK_PIN 11
+#define thermo1_CS_PIN  10
+#define thermo1_SO_PIN  12
 
-#define thermo2_SCK_PIN 6
-#define thermo2_CS_PIN  7
-#define thermo2_SO_PIN  8
+//terminal block
+#define thermo2_SCK_PIN 11
+#define thermo2_CS_PIN  13
+#define thermo2_SO_PIN  12
 
-#define buttonPin 12
-#define buttonLEDPin 11
+#define buttonPin A3
+#define buttonLEDPin 3
 
-#define relaySetPin 9
-#define relayResetPin 10
+#define relaySetPin A0
+#define relayResetPin A1
+
+#define buzzerPin 2
 
 #define DoSerial (Serial.begin(9600))
 #define SerialPrintln(a) (Serial.println(a))
