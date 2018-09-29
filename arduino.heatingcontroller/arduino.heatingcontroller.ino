@@ -25,7 +25,12 @@
 #define SerialPrintln(a) (Serial.println(a))
 #define SerialPrint(a) (Serial.print(a))
 
-U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
+// SCK = D0
+// SDA = D1,MOSI
+// DC = A0
+//U8GLIB_SSD1306_128X64(sck, mosi, cs, a0 [, reset])
+U8GLIB_SSD1306_128X64 u8g(4, 5, 8, 7, 6);
+
 MAX6675_Thermocouple* thermocouple1 = NULL;   //water
 MAX6675_Thermocouple* thermocouple2 = NULL;   //fireplace
 
